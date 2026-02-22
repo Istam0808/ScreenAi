@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next.config.mjs", "**/*.js", "**/*.jsx"],
+  "exclude": ["node_modules", "electron"]
+}

@@ -1,0 +1,109 @@
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  padding: 1.5rem 2rem;
+  background: $color-bg;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid $color-border;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.link {
+  color: $color-accent;
+  font-size: 0.95rem;
+
+  &:hover {
+    color: $color-accent-hover;
+    text-decoration: none;
+  }
+}
+
+.welcome {
+  padding: 1.5rem 0;
+  margin-bottom: 1rem;
+}
+
+.welcomeTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.hint {
+  color: $color-text-muted;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.hintSmall {
+  color: $color-text-muted;
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  opacity: 0.9;
+}
+
+.loading {
+  color: $color-accent;
+  margin: 0 0 1rem;
+}
+
+.error {
+  color: #f87171;
+  margin: 0 0 1rem;
+}
+
+.content {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 768px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+}
+
+.section {
+  padding: 1rem;
+  @include card;
+}
+
+.sectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $color-text-muted;
+}
+
+.preview {
+  width: 100%;
+  height: auto;
+  border-radius: $radius;
+  border: 1px solid $color-border;
+}
+
+.analysis {
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}

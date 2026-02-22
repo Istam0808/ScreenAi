@@ -1,0 +1,102 @@
+@use '@/styles/variables' as *;
+@use '@/styles/mixins' as *;
+
+.main {
+  min-height: 100vh;
+  padding: 1.5rem 2rem;
+  background: $color-bg;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid $color-border;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.back {
+  color: $color-accent;
+  font-size: 0.95rem;
+
+  &:hover {
+    color: $color-accent-hover;
+    text-decoration: none;
+  }
+}
+
+.section {
+  padding: 1rem;
+  @include card;
+  max-width: 480px;
+}
+
+.sectionTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.hint {
+  color: $color-text-muted;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: $color-bg;
+  border: 1px solid $color-border;
+  border-radius: $radius;
+  color: $color-text;
+  font-size: 1rem;
+
+  &:focus {
+    @include focus-ring;
+  }
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  background: $color-accent;
+  color: #fff;
+  border: none;
+  border-radius: $radius;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background $transition;
+
+  &:hover {
+    background: $color-accent-hover;
+  }
+
+  &:focus {
+    @include focus-ring;
+  }
+}
+
+.success {
+  margin: 0.75rem 0 0;
+  color: #4ade80;
+  font-size: 0.9rem;
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  color: #f87171;
+  font-size: 0.9rem;
+}

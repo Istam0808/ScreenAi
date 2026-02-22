@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Выделение области</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; cursor: crosshair; }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 1;
+    }
+    #selection {
+      position: fixed;
+      border: 2px dashed rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+      z-index: 2;
+      pointer-events: none;
+      display: none;
+    }
+    #selection.visible { display: block; }
+    #hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.9);
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay"></div>
+  <div id="selection"></div>
+  <div id="hint">Выделите область мышью. Esc — отмена.</div>
+  <script src="capture-renderer.js"></script>
+</body>
+</html>
