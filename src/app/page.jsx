@@ -66,6 +66,39 @@ function captureScreen(bounds) {
   });
 }
 
+/** Проверяет, не является ли изображение в основном чёрным (типично для захвата окна Chrome с аппаратным ускорением). */
+function isImageMostlyBlack(dataUrl, sampleSize = 20, blackThreshold = 25) {
+  if (!dataUrl || typeof dataUrl !== 'string') return false;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const w = Math.min(img.width, 400);
+      const h = Math.min(img.height, 400);
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+      const step = Math.max(1, Math.floor((w * h) / (sampleSize * sampleSize)));
+      let sum = 0;
+      let count = 0;
+      for (let i = 0; i < data.length; i += step * 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        sum += (r + g + b) / 3;
+        count += 1;
+      }
+      const avg = count ? sum / count : 0;
+      resolve(avg <= blackThreshold);
+    };
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+}
+
 async function analyzeImage(dataUrl) {
   const res = await fetch('/api/analyze', {
     method: 'POST',
@@ -86,6 +119,8 @@ export default function Home() {
   const [analysis, setAnalysis] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [googleSentHint, setGoogleSentHint] = useState('');
+  const [screenshotIsBlack, setScreenshotIsBlack] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -96,15 +131,23 @@ export default function Home() {
     setLoading(true);
     setScreenshot(null);
     setAnalysis('');
+    setGoogleSentHint('');
+    setScreenshotIsBlack(false);
     try {
       const dataUrl = await captureScreen(bounds);
       setScreenshot(dataUrl);
+      const black = await isImageMostlyBlack(dataUrl);
+      setScreenshotIsBlack(black);
       const text = await analyzeImage(dataUrl);
       setAnalysis(text);
     } catch (e) {
       setError(e?.message || 'Произошла ошибка');
     } finally {
       setLoading(false);
+      // Показываем окно только после захвата, чтобы не перекрывать экран (например, Google в браузере)
+      if (typeof window !== 'undefined' && window.electron?.showMainWindow) {
+        window.electron.showMainWindow();
+      }
     }
   }, []);
 
@@ -112,8 +155,8 @@ export default function Home() {
     if (!mounted || typeof window === 'undefined' || !window.electron) return;
     if (window.electron.onCaptureRegion) {
       window.electron.onCaptureRegion((bounds) => {
-        // Задержка, чтобы окно захвата закрылось и экран (в т.ч. окна Chrome) успел перерисоваться
-        setTimeout(() => runCaptureAndAnalyze(bounds), 400);
+        // Задержка, чтобы окно захвата закрылось и экран (в т.ч. Chrome/Google) успел перерисоваться
+        setTimeout(() => runCaptureAndAnalyze(bounds), 600);
       });
     }
     if (window.electron.onScreenshotRequest) {
@@ -141,7 +184,7 @@ export default function Home() {
         </p>
         {isElectron && (
           <p className={styles.hintSmall}>
-            Если окно Chrome/браузера выходит чёрным: в Chrome отключите «Использовать аппаратное ускорение» (Настройки → Система).
+            Если вкладка Google/Chrome на скриншоте чёрная — отключите в Chrome «Использовать аппаратное ускорение»: Настройки → Система → перезапустите браузер.
           </p>
         )}
       </section>
@@ -153,7 +196,36 @@ export default function Home() {
         {screenshot && (
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Скриншот</h2>
+            {screenshotIsBlack && (
+              <div className={styles.chromeFixTip} role="alert">
+                <strong>На скриншоте не видно содержимое вкладки (чёрный экран).</strong>
+                <br />
+                Так бывает при захвате окна Chrome. Отключите аппаратное ускорение: <strong>Chrome → Настройки → Система</strong> → снимите «Использовать аппаратное ускорение» → перезапустите Chrome.
+              </div>
+            )}
             <img src={screenshot} alt="Скриншот" className={styles.preview} />
+            {isElectron && (
+              <>
+                <button
+                  type="button"
+                  className={styles.googleBtn}
+                  onClick={async () => {
+                    setGoogleSentHint('');
+                    const result = await window.electron.openGoogleWithScreenshot(screenshot);
+                    if (result?.ok) {
+                      setGoogleSentHint('Открыто окно Google Lens. Через пару секунд изображение вставится автоматически.');
+                    } else {
+                      setGoogleSentHint(result?.error || 'Не удалось открыть Google');
+                    }
+                  }}
+                >
+                  Открыть в Google AI (Lens)
+                </button>
+                {googleSentHint && (
+                  <p className={styles.googleHint}>{googleSentHint}</p>
+                )}
+              </>
+            )}
           </section>
         )}
         {analysis && (

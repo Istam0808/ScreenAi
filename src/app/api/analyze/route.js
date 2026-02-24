@@ -23,7 +23,22 @@ export async function POST(request) {
 
   const base64 = rawImage.replace(/^data:image\/\w+;base64,/, '');
 
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: { timeout: 60000 },
+  });
+  const systemPrompt = `Ты анализируешь скриншот экрана. Твоя главная задача — РЕШАТЬ задания, а не только описывать картинку.
+
+Если на скриншоте есть:
+- вопрос теста, викторины, экзамена;
+- задача по математике, физике, логике и т.п.;
+- задание «выбери правильный ответ» или «напиши ответ»;
+- любой другой чётко сформулированный вопрос или задачу —
+
+то ОБЯЗАТЕЛЬНО реши задание пошагово и в конце чётко напиши ответ. Например: «Правильный ответ: …» или «Ответ: …». Не ограничивайся описанием вариантов — укажи, какой вариант верный и почему.
+
+Если на скриншоте нет явного задания (просто интерфейс, страница, форма без конкретного вопроса) — кратко опиши, что изображено, и дай анализ.`;
+
   const contents = [
     {
       inlineData: {
@@ -31,7 +46,7 @@ export async function POST(request) {
         data: base64,
       },
     },
-    'Опиши и проанализируй этот скриншот экрана. Укажи, что на нём изображено, какие элементы интерфейса видны и дай краткий анализ.',
+    systemPrompt,
   ];
 
   async function callGemini() {
@@ -91,10 +106,23 @@ export async function POST(request) {
     }
 
     const status = err?.status ?? err?.code ?? 502;
+    const cause = err?.cause;
+    const msg = String(err?.message || '');
+    const isTimeout =
+      cause?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
+      String(cause?.message || '').includes('Connect Timeout') ||
+      msg.includes('fetch failed');
+    const isLeakedKey =
+      status === 403 ||
+      msg.includes('PERMISSION_DENIED') ||
+      msg.includes('leaked') ||
+      msg.includes('API key was reported');
+    const userMessage = isLeakedKey
+      ? 'Этот API-ключ заблокирован Google (считается скомпрометированным). Создайте новый ключ в Google AI Studio и укажите его в .env.local как GOOGLE_GENAI_API_KEY.'
+      : isTimeout
+        ? 'Нет связи с серверами Google (таймаут). Проверьте интернет, VPN, антивирус и файрвол. Если вы за прокси — настройте его для Node.js.'
+        : err?.message || 'Ошибка при обращении к Google AI';
     console.error('Gemini API error:', err);
-    return Response.json(
-      { error: err?.message || 'Ошибка при обращении к Google AI' },
-      { status: status >= 400 ? status : 502 }
-    );
+    return Response.json({ error: userMessage }, { status: status >= 400 ? status : 502 });
   }
 }

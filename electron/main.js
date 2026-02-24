@@ -1,5 +1,6 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, Tray, nativeImage, Menu } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, desktopCapturer, Tray, nativeImage, Menu, shell, clipboard } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const Store = require('electron-store');
 
 const store = new Store();
@@ -102,8 +103,8 @@ function closeCaptureAndSendBounds(bounds) {
   }
   const win = getWindow();
   if (win && bounds) {
-    win.show();
-    win.focus();
+    // Не показываем окно здесь — иначе оно перекроет экран и попадёт в захват.
+    // Окно покажется после завершения захвата (вызов showMainWindow из рендерера).
     win.webContents.send('capture-region', bounds);
   }
 }
@@ -179,4 +180,95 @@ ipcMain.handle('set-shortcut', (_, accelerator) => {
   const ok = registerShortcut(accelerator);
   if (ok) store.set('shortcut', accelerator);
   return ok;
+});
+
+ipcMain.handle('show-main-window', () => {
+  const win = getWindow();
+  if (win) {
+    win.show();
+    win.focus();
+  }
+});
+
+// Скриншот → временный файл → Playwright открывает Google Lens и загружает фото
+const GOOGLE_LENS_URL = 'https://lens.google.com/';
+
+async function openLensWithPlaywright(dataUrl) {
+  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+  const buf = Buffer.from(base64, 'base64');
+  const tempDir = app.getPath('temp');
+  const tempPath = path.join(tempDir, `screenai-${Date.now()}.png`);
+  fs.writeFileSync(tempPath, buf);
+
+  const { chromium } = require('playwright');
+  const browser = await chromium.launch({ headless: false });
+  const context = await browser.newContext({ acceptDownloads: true });
+  const page = await context.newPage();
+
+  await page.goto(GOOGLE_LENS_URL, { waitUntil: 'networkidle', timeout: 20000 });
+  await new Promise((r) => setTimeout(r, 2000));
+
+  // Ждём появления модалки «Перетащите изображение сюда или загрузите файл»
+  const dropZoneText = page.getByText(/перетащите изображение|загрузите файл|drag.*image|upload.*file/i).first();
+  await dropZoneText.waitFor({ state: 'visible', timeout: 15000 }).catch(() => null);
+  await new Promise((r) => setTimeout(r, 1000));
+
+  let uploaded = false;
+
+  const fileInput = page.locator('input[type="file"]').first();
+  if ((await fileInput.count()) > 0) {
+    try {
+      await fileInput.setInputFiles(tempPath);
+      uploaded = true;
+    } catch (_) {}
+  }
+
+  if (!uploaded) {
+    try {
+      await dropZoneText.click();
+      await new Promise((r) => setTimeout(r, 600));
+      const inputAfter = page.locator('input[type="file"]').first();
+      if ((await inputAfter.count()) > 0) {
+        await inputAfter.setInputFiles(tempPath);
+        uploaded = true;
+      }
+    } catch (_) {}
+  }
+
+  if (!uploaded) {
+    await page.evaluate(async (dataUrl) => {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    }, dataUrl);
+    const linkInput = page.getByPlaceholder('Вставьте ссылку на изображение').or(
+      page.locator('input[jsname="W7hAGe"]')
+    ).first();
+    try {
+      await linkInput.click({ timeout: 3000 });
+    } catch (_) {
+      try { await dropZoneText.click({ timeout: 2000 }); } catch (_) { await page.click('body'); }
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    await page.keyboard.press('Control+V');
+  }
+
+  setTimeout(() => { try { fs.unlinkSync(tempPath); } catch (_) {} }, 5000);
+}
+
+ipcMain.handle('open-google-with-screenshot', async (_, dataUrl) => {
+  if (!dataUrl || typeof dataUrl !== 'string') return { ok: false, error: 'Нет изображения' };
+  try {
+    setImmediate(() => {
+      openLensWithPlaywright(dataUrl).catch((e) => {
+        console.error('Playwright Lens:', e);
+        if (getWindow() && getWindow().webContents) {
+          getWindow().webContents.send('lens-error', e?.message || 'Ошибка открытия Lens');
+        }
+      });
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e?.message || 'Ошибка' };
+  }
 });

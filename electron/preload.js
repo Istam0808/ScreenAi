@@ -11,4 +11,6 @@ contextBridge.exposeInMainWorld('electron', {
   getScreenSourceForPoint: (x, y) => ipcRenderer.invoke('get-screen-source-for-point', x, y),
   getShortcut: () => ipcRenderer.invoke('get-shortcut'),
   setShortcut: (accelerator) => ipcRenderer.invoke('set-shortcut', accelerator),
+  openGoogleWithScreenshot: (dataUrl) => ipcRenderer.invoke('open-google-with-screenshot', dataUrl),
+  showMainWindow: () => ipcRenderer.invoke('show-main-window'),
 });

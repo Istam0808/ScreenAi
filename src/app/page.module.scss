@@ -95,11 +95,43 @@
   color: $color-text-muted;
 }
 
+.chromeFixTip {
+  margin-bottom: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #1e293b;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: $radius;
+}
+
 .preview {
   width: 100%;
   height: auto;
   border-radius: $radius;
   border: 1px solid $color-border;
+}
+
+.googleBtn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: $color-bg;
+  background: $color-accent;
+  border: none;
+  border-radius: $radius;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-accent-hover;
+  }
+}
+
+.googleHint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: $color-text-muted;
 }
 
 .analysis {
